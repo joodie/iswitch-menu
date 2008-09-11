@@ -1,0 +1,5 @@
+iswitch-menu is an Emacs extension that aims to eventually make the
+console menu interface for emacs much efficient and easy to use.
+
+currently this is far from finished, but it works reasonably well with
+the emacs-rails package, if you switch rails-always-use-text-menus on.
