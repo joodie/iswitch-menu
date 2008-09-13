@@ -29,7 +29,7 @@
 ;; Always Use Text Menus option in the rails customization group.
 
 ;;; Code:
-
+(require 'tmm)
 (require 'iswitchb)
 
 ;; adapted from iswitchb.el, Kin Cho
@@ -60,6 +60,7 @@
 	(list title (nreverse list)))
     keymap))
 
+(defvar captured-keymap t)
 
 (defun iswitch-menu-prompt (menu &rest ignored)
   "A drop-in replacement for tmm-prompt and x-popup-menu using iswitchb semantics
@@ -67,13 +68,29 @@ and technology. Should make using menus from the console / keyboard faster and
 more comfortable."
   (if (or (keymapp menu)
 	  (keymapp (car menu)))
-      (cdr (apply #'iswitch-menu-nested-prompt (iswitch-menu-parse-keymap menu)))
+      (setq captured-keymap menu)
+      (iswitch-menu-stored-tmm-prompt menu)
+;      (cdr (apply #'iswitch-menu-nested-prompt (iswitch-menu-parse-keymap menu)))
     (cdr (iswitch-menu-nested-prompt (caadr menu) (cdadr menu)))))
 
+(defun iswitch-menu-stored-tmm-prompt nil)
 
-;; override tmm-prompt - you can override x-popup-menu with this too
-;; if you really want
-(fset #'tmm-prompt #'iswitch-menu-prompt) 
+(defun iswitch-menu-toggle ()
+  (interactive)
+  (cond (#'iswitch-menu-stored-tmm-prompt 
+	 (fset #'tmm-prompt #'iswich-menu-stored-tmm-prompt)
+	 (fset #'iswitch-menu-stored-tmm-prompt nil))
+	(t
+	 (fset #'iswitch-menu-stored-tmm-prompt #'tmm-prompt)
+	 (fset #'tmm-prompt #'iswitch-menu-prompt))))
+
+(defun iswitch-menu (&optional s)
+  (interactive)
+  (if s
+    (if (> s 1)
+	(iswitch-menu-on)
+      (iswitch-menu-off))
+    (iswitch-menu-toggle)))
 
 (provide 'iswitch-menu)
 ;;; iswitch-menu.el ends here
