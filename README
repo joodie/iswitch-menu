@@ -10,3 +10,7 @@ notable bugs:
  disabled menu items aren't.
  submenus passed as symbols (variables) are not recognized.
  
+More info and screenshots:
+
+http://joost.zeekat.nl/2008/09/14/better-consolekeyboard-menus-for-emacs/
+

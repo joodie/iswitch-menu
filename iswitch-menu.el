@@ -117,9 +117,9 @@
 (defvar iswitch-menu-captured-keymap t)
 
 (defun iswitch-menu-prompt (menu &rest ignored)
-  "A drop-in replacement for tmm-prompt and x-popup-menu using iswitchb semantics
-and technology. Should make using menus from the console / keyboard faster and
-more comfortable."
+  "A drop-in replacement for tmm-prompt and x-popup-menu using
+iswitchb semantics and technology. Should make using menus from
+the console / keyboard faster and more comfortable."
   (if (or (keymapp menu)
 	  (keymapp (car menu)))
       (progn (setq iswitch-menu-captured-keymap menu)
@@ -132,8 +132,9 @@ more comfortable."
 (defun old-tmm-prompt ())
 
 (defun iswitch-menu-override-tmm-prompt ()
-  "Install iswitch-menu-prompt over tmm-prompt. this means all x-popup-menu and tmm-menubar calls
-will use iswitch-menu-prompt instead. There is currently no way to revert this command" 
+  "Install iswitch-menu-prompt over tmm-prompt. this means all
+x-popup-menu calls will use iswitch-menu-prompt instead. There is
+currently no way to revert this command"
   (interactive)
   (require 'tmm)
   (when (= old-tmm-prompt-set 0)
