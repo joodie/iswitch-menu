@@ -1,5 +1,12 @@
-iswitch-menu is an Emacs extension that aims to eventually make the
-console menu interface for emacs much efficient and easy to use.
+iswitch-menu is an Emacs extension that aims to make the console menu
+interface for emacs much efficient and easy to use, based on the
+iswitchb mode for switching buffers by substring/regexp matching
 
 currently this is far from finished, but it works reasonably well with
 the emacs-rails package, if you switch rails-always-use-text-menus on.
+
+notable bugs: 
+ 
+ disabled menu items aren't.
+ submenus passed as symbols (variables) are not recognized.
+ 

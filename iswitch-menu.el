@@ -54,15 +54,11 @@
 	(iswitch-menu-nested-prompt (concat prompt " > " (car chosen)) (cdr chosen))
 	chosen)))
 
-(defun iswitch-menu-event (thing)
-  (cond
-   ((symbolp thing)
-    thing)
-   ((and (consp thing)
-	 (eql 'lambda (car thing)))
-    (list thing))
-   (t
-    nil)))
+(defun iswitch-menu-eventp (thing)
+  (and (not (keymapp thing))
+       (or (symbolp thing)
+	   (and (consp thing)
+		(eql 'lambda (car thing))))))
 
 ;; parse a single keymap key definition
 ;; (which can be a keymap itself)
@@ -80,41 +76,41 @@
        ((not (cdr def))
 	nil)
        ;; ("Title" . definition)
-       ((iswitch-menu-event (cdr def))
+       ((iswitch-menu-eventp (cdr def))
 	(cons title (cdr def)))
       ;; ("Title" longer definition)
        ((and (consp (cdr def))
 	     (not (keymapp (cdr def)))
-	     (iswitch-menu-event (cadr def)))
+	     (iswitch-menu-eventp (cadr def)))
 	(cons title (cadr def)))
        ;; ("Title" "Description" . def)
        ((and (consp (cdr def))
 	     (or (stringp (cadr def))
 		 (and (consp (cadr def))
 		      (null (caadr def))))
-	     (iswitch-menu-event (cddr def)))
+	     (iswitch-menu-eventp (cddr def)))
 	(cons title (cddr def)))
        ;; nested keymaps
-       ((and (not (symbolp (cdr def)))
-	     (keymapp (cdr def)))
+       ((keymapp (cdr def))
 	(cons title (iswitch-menu-parse-keymap (cdr def))))
-       ((and (not (symbolp (cadr def)))
-	     (keymapp (cadr def)))
+       ((keymapp (cadr def))
 	(cons title (iswitch-menu-parse-keymap (cadr def))))
        ;;
        (t
 	(error "iswitch-menu error: can't handle keymap definition %s" def))))))
 
 (defun iswitch-menu-parse-keymap (keymap)
-  (let ((result))
-    (map-keymap (lambda (key def)
-		  (let ((p (iswitch-menu-parse-keymap-entry def)))
-		    (if p
-			(setq result (cons p result))))) keymap)			
-    (cons (if (consp (cadr keymap))
-	      (cadr (cadr keymap))
-	    (cadr keymap)) result)
-    (nreverse result)))
+  (if (symbolp keymap)
+      nil ;; keymap passed as symbol - we need some fix for this - 
+    (let ((result))
+      (map-keymap (lambda (key def)
+		    (let ((p (iswitch-menu-parse-keymap-entry def)))
+		      (if p
+			  (setq result (cons p result))))) keymap)			
+      (cons (if (consp (cadr keymap))
+		(cadr (cadr keymap))
+	      (cadr keymap)) result)
+      (nreverse result))))
 
 ;; this keeps the last requested keymap sent to
 ;; iswitch-menu-prompt. useful for debugging
@@ -136,6 +132,8 @@ more comfortable."
 (defun old-tmm-prompt ())
 
 (defun iswitch-menu-override-tmm-prompt ()
+  "Install iswitch-menu-prompt over tmm-prompt. this means all x-popup-menu and tmm-menubar calls
+will use iswitch-menu-prompt instead. There is currently no way to revert this command" 
   (interactive)
   (require 'tmm)
   (when (= old-tmm-prompt-set 0)
