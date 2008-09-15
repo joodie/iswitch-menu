@@ -7,8 +7,8 @@ the emacs-rails package, if you switch rails-always-use-text-menus on.
 
 notable bugs: 
  
- disabled menu items aren't.
- submenus passed as symbols (variables) are not recognized.
+ submenus passed as symbols (variables) are now recognized, but I haven't
+ yet figured out what to do with the data in yank-menu.
  
 More info and screenshots:
 

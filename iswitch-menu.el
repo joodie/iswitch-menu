@@ -18,8 +18,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 ;; This code replaces tmm-prompt with something a lot more convenient.
 ;; Prompted by the horrible navigation menus in the otherwise
 ;; *excellent* emacs-rails library, this code should make using menus
@@ -35,10 +35,21 @@
 ;; M-x tmm-menubar
 ;; note that this will work even if you're using a GUI menu bar
 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;; use this with emacs rails ;;;;;;;;;;;;;;;;;;;;;
+;;
 ;; to use with emacs-rails navigation: same as above, and switch on
 ;; the Rails Always Use Text Menus option in the rails customization
 ;; group.
+;;
+;; alternatively, if you don't like to globally override tmm-prompt,
+;; get a version of emacs-rails with configurable text menus, like
+;; this one: http://github.com/remvee/emacs-rails/tree/master and
+;; switch on rails-always-use-text-menu and set
+;; rails-text-menu-function to #'iswitch-menu-prompt
+;; 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require 'cl)
 
 ;; adapted from iswitchb.el, Kin Cho
 (defun iswitch-menu-single-prompt (prompt items)
@@ -71,46 +82,53 @@
     (let ((title (if (stringp (car def)) 
 		     (car def)
 		   (eval (car def)))))
-      (cond
-       ;; ("--")
-       ((not (cdr def))
-	nil)
-       ;; ("Title" . definition)
-       ((iswitch-menu-eventp (cdr def))
-	(cons title (cdr def)))
-      ;; ("Title" longer definition)
-       ((and (consp (cdr def))
-	     (not (keymapp (cdr def)))
-	     (iswitch-menu-eventp (cadr def)))
-	(cons title (cadr def)))
-       ;; ("Title" "Description" . def)
-       ((and (consp (cdr def))
-	     (or (stringp (cadr def))
-		 (and (consp (cadr def))
-		      (null (caadr def))))
-	     (iswitch-menu-eventp (cddr def)))
-	(cons title (cddr def)))
-       ;; nested keymaps
-       ((keymapp (cdr def))
-	(cons title (iswitch-menu-parse-keymap (cdr def))))
-       ((keymapp (cadr def))
-	(cons title (iswitch-menu-parse-keymap (cadr def))))
-       ;;
-       (t
-	(error "iswitch-menu error: can't handle keymap definition %s" def))))))
+      (if (or (not (getf def :enable))
+	      (eval (getf def :enable)))
+	  (cond
+	   ;; ("--")
+	   ((not (cdr def))
+	    nil)
+	   ;; ("Title" . definition)
+	   ((iswitch-menu-eventp (cdr def))
+	    (cons title (cdr def)))
+	   ;; ("Title" longer definition)
+	   ((and (consp (cdr def))
+		 (not (keymapp (cdr def)))
+		 (iswitch-menu-eventp (cadr def)))
+	    (cons title (cadr def)))
+	   ;; ("Title" "Description" . def)
+	   ((and (consp (cdr def))
+		 (or (stringp (cadr def))
+		     (and (consp (cadr def))
+			  (null (caadr def))))
+		 (iswitch-menu-eventp (cddr def)))
+	    (cons title (cddr def)))
+	   ;; nested keymaps
+	   ((keymapp (cdr def))
+	    (cons title (iswitch-menu-parse-keymap (cdr def))))
+	   ((keymapp (cadr def))
+	    (cons title (iswitch-menu-parse-keymap (cadr def))))
+	   ;;
+	   (t
+	    (error "iswitch-menu error: can't handle keymap definition %s" def)))))))
 
 (defun iswitch-menu-parse-keymap (keymap)
-  (if (symbolp keymap)
-      nil ;; keymap passed as symbol - we need some fix for this - 
-    (let ((result))
-      (map-keymap (lambda (key def)
-		    (let ((p (iswitch-menu-parse-keymap-entry def)))
-		      (if p
-			  (setq result (cons p result))))) keymap)			
-      (cons (if (consp (cadr keymap))
-		(cadr (cadr keymap))
-	      (cadr keymap)) result)
-      (nreverse result))))
+  (if (and (symbolp keymap)
+	   (keymapp keymap))
+      (setq keymap (symbol-value keymap)))
+  (if (keymapp keymap)
+      (let ((result))
+	(map-keymap (lambda (key def)
+		      (let ((p (iswitch-menu-parse-keymap-entry def)))
+			(if p
+			    (setq result (cons p result))))) keymap)			
+	(cons (if (consp (cadr keymap))
+		  (cadr (cadr keymap))
+		(cadr keymap)) result)
+	(nreverse result))
+    ;; not a valid keymap result. the only sitution I've run into is
+    ;; with yank-menu on my system.
+    nil))
 
 ;; this keeps the last requested keymap sent to
 ;; iswitch-menu-prompt. useful for debugging
