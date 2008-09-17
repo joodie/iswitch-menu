@@ -96,6 +96,11 @@
 		 (not (keymapp (cdr def)))
 		 (iswitch-menu-eventp (cadr def)))
 	    (cons title (cadr def)))
+	   ;; ("Title" (stuff) longer definition)
+	   ((and (consp (cdr def))
+		 (not (keymapp (cadr def)))
+		 (iswitch-menu-eventp (cddr def)))
+	    (cons title (cddr def)))
 	   ;; ("Title" "Description" . def)
 	   ((and (consp (cdr def))
 		 (or (stringp (cadr def))
@@ -103,6 +108,14 @@
 			  (null (caadr def))))
 		 (iswitch-menu-eventp (cddr def)))
 	    (cons title (cddr def)))
+	   ;; ("Title" "Description" (stuff) . def)
+	   ((and (consp (cdr def))
+		 (and (stringp (cadr def))
+		      (and (consp (cddr def))
+			   (consp (caddr def))
+			   (not (eql 'lambda (caaddr def)))
+			   (iswitch-menu-eventp (cdddr def)))))
+	    (cons title (cdddr def)))
 	   ;; nested keymaps
 	   ((keymapp (cdr def))
 	    (cons title (iswitch-menu-parse-keymap (cdr def))))
@@ -110,6 +123,7 @@
 	    (cons title (iswitch-menu-parse-keymap (cadr def))))
 	   ;;
 	   (t
+	    (message "s" (pp def))
 	    (error "iswitch-menu error: can't handle keymap definition %s" def)))))))
 
 (defun iswitch-menu-parse-keymap (keymap)
