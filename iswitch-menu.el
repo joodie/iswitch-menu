@@ -136,8 +136,8 @@ the console / keyboard faster and more comfortable."
 x-popup-menu calls will use iswitch-menu-prompt instead. There is
 currently no way to revert this command"
   (interactive)
-  (require 'tmm)
   (when (= old-tmm-prompt-set 0)
+    (require 'tmm)
     (fset #'old-tmm-prompt #'tmm-prompt)
     (setq old-tmm-prompt-set 1)
     (fset #'tmm-prompt #'iswitch-menu-prompt)))
