@@ -18,7 +18,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; SYNOPSIS
 ;;
 ;; This code replaces tmm-prompt with something a lot more convenient.
 ;; Prompted by the horrible navigation menus in the otherwise
@@ -35,7 +35,18 @@
 ;; M-x tmm-menubar
 ;; note that this will work even if you're using a GUI menu bar
 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;; use this with emacs rails ;;;;;;;;;;;;;;;;;;;;;
+;; REPORTING BUGS
+;;
+;; This code is still under construction. If you find any situations
+;; where it doesn't work, trye the the latest version from
+;; http://github.com/joodie/iswitch-menu/
+
+;; If that doesn't work either, please contact the author. If any
+;; errors occur during the creation or executiong of a particular
+;; menu, please provide the output of M-x iswitch-menu-report as run
+;; immediately after the error.
+;;
+;; USING THIS CODE WITH EMACS-RAILS
 ;;
 ;; to use with emacs-rails navigation: same as above, and switch on
 ;; the Rails Always Use Text Menus option in the rails customization
@@ -50,6 +61,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (require 'cl)
+
+;; this will store debug info
+(defvar iswitch-menu-last-keydef-error :no-error)
+(defvar iswitch-menu-parse-error :no-error)
+(defvar iswitch-menu-captured-keymap :none)
 
 ;; adapted from iswitchb.el, Kin Cho
 (defun iswitch-menu-single-prompt (prompt items)
@@ -124,29 +140,29 @@
 	   ;;
 	   (t
 	    (message "s" (pp def))
-	    (error "iswitch-menu error: can't handle keymap definition %s" def)))))))
+	    (setq iswitch-menu-last-keydef-error def)
+	    (error "iswitch-menu error: can't handle keymap definition")))))))
 
 (defun iswitch-menu-parse-keymap (keymap)
-  (if (and (symbolp keymap)
-	   (keymapp keymap))
-      (setq keymap (symbol-value keymap)))
-  (if (keymapp keymap)
-      (let ((result))
-	(map-keymap (lambda (key def)
-		      (let ((p (iswitch-menu-parse-keymap-entry def)))
-			(if p
-			    (setq result (cons p result))))) keymap)			
-	(cons (if (consp (cadr keymap))
-		  (cadr (cadr keymap))
-		(cadr keymap)) result)
-	(nreverse result))
-    ;; not a valid keymap result. the only sitution I've run into is
-    ;; with yank-menu on my system.
-    nil))
+  (let ((orig-keymap keymap))
+    (if (and (symbolp keymap)
+	     (keymapp keymap))
+	(setq keymap (symbol-value keymap)))
+    (if (keymapp keymap)
+	(let ((result))
+	  (map-keymap (lambda (key def)
+			(let ((p (iswitch-menu-parse-keymap-entry def)))
+			  (if p
+			      (setq result (cons p result))))) keymap)			
+	  (cons (if (consp (cadr keymap))
+		    (cadr (cadr keymap))
+		  (cadr keymap)) result)
+	  (nreverse result))
+      ;; not a valid keymap result. the only sitution I've run into is
+      ;; with yank-menu on my system.
+      (setq iswitch-menu-parse-error (list :orig orig-keymap :interpolated keymap))
+      nil)))
 
-;; this keeps the last requested keymap sent to
-;; iswitch-menu-prompt. useful for debugging
-(defvar iswitch-menu-captured-keymap t)
 
 (defun iswitch-menu-prompt (menu &rest ignored)
   "A drop-in replacement for tmm-prompt and x-popup-menu using
@@ -173,6 +189,17 @@ currently no way to revert this command"
     (fset #'old-tmm-prompt #'tmm-prompt)
     (setq old-tmm-prompt-set 1)
     (fset #'tmm-prompt #'iswitch-menu-prompt)))
+
+(defun iswitch-menu-report ()
+  (interactive)
+  (let ((buf (generate-new-buffer (generate-new-buffer-name "*ISWITCH-MENU-DEBUG*"))))
+    (display-buffer buf)
+    (set-buffer buf)
+    (insert "iswitch-menu debug info:\n\n")
+    (dolist (s '(iswitch-menu-last-keydef-error iswitch-menu-parse-error iswitch-menu-captured-keymap))
+      (insert (symbol-name s) ": " (pp-to-string (symbol-value s)) "\n\n"))))
+
+ 
 
 
 (provide 'iswitch-menu)
