@@ -112,16 +112,12 @@
 		 (not (keymapp (cdr def)))
 		 (iswitch-menu-eventp (cadr def)))
 	    (cons title (cadr def)))
-<<<<<<< HEAD:iswitch-menu.el
-	   ;; ("Title" "Description" . def ...)
-=======
 	   ;; ("Title" (stuff) longer definition)
 	   ((and (consp (cdr def))
 		 (not (keymapp (cadr def)))
 		 (iswitch-menu-eventp (cddr def)))
 	    (cons title (cddr def)))
 	   ;; ("Title" "Description" . def)
->>>>>>> a9059860deb2cabf49147b544fe5c2847784d53e:iswitch-menu.el
 	   ((and (consp (cdr def))
 		 (or (stringp (cadr def))
 		     (and (consp (cadr def))
