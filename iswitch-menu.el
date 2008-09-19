@@ -66,6 +66,7 @@
 (defvar iswitch-menu-last-keydef-error :no-error)
 (defvar iswitch-menu-parse-error :no-error)
 (defvar iswitch-menu-captured-keymap :none)
+(defvar iswitch-menu-last-chosen :none)
 
 ;; adapted from iswitchb.el, Kin Cho
 (defun iswitch-menu-single-prompt (prompt items)
@@ -77,8 +78,10 @@
 (defun iswitch-menu-nested-prompt (prompt items)
   (let ((chosen (iswitch-menu-single-prompt (concat prompt " > ") items)))
     (if (and (consp (cdr chosen))
-	     (not (eql 'lambda (cadr chosen))))
+	     (not (eql 'lambda (cadr chosen)))
+	     (> (length (cdr chosen)) 1))
 	(iswitch-menu-nested-prompt (concat prompt " > " (car chosen)) (cdr chosen))
+      (setq iswitch-menu-last-chosen chosen)
 	chosen)))
 
 (defun iswitch-menu-eventp (thing)
@@ -168,11 +171,10 @@
   "A drop-in replacement for tmm-prompt and x-popup-menu using
 iswitchb semantics and technology. Should make using menus from
 the console / keyboard faster and more comfortable."
+  (setq iswitch-menu-captured-keymap menu)
   (if (or (keymapp menu)
 	  (keymapp (car menu)))
-      (progn (setq iswitch-menu-captured-keymap menu)
-	     ;; apparently, tmm-prompt calls events from keymaps
-	     (let ((r (cdr (iswitch-menu-nested-prompt "Menu" (iswitch-menu-parse-keymap menu)))))
+      (progn (let ((r (cdr (iswitch-menu-nested-prompt "Menu" (iswitch-menu-parse-keymap menu)))))
 	       (call-interactively r)))
     (cdr (iswitch-menu-nested-prompt (caadr menu) (cdadr menu)))))
 
@@ -196,7 +198,7 @@ currently no way to revert this command"
     (display-buffer buf)
     (set-buffer buf)
     (insert "iswitch-menu debug info:\n\n")
-    (dolist (s '(iswitch-menu-last-keydef-error iswitch-menu-parse-error iswitch-menu-captured-keymap))
+    (dolist (s '(iswitch-menu-last-keydef-error iswitch-menu-parse-error iswitch-menu-captured-keymap iswitch-menu-last-chosen))
       (insert (symbol-name s) ": " (pp-to-string (symbol-value s)) "\n\n"))))
 
  
