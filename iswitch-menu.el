@@ -35,6 +35,13 @@
 ;; M-x tmm-menubar
 ;; note that this will work even if you're using a GUI menu bar
 ;;
+;; CUSTOMIZATION
+;;
+;; You can customize the menus using the iswitch-menu customization
+;; group:
+;;
+;; M-x customize-group <ENTER> iswitch-menu <ENTER>
+;;
 ;; REPORTING BUGS
 ;;
 ;; This code is still under construction. If you find any situations
@@ -62,89 +69,108 @@
 
 (require 'cl)
 
+(defgroup iswitch-menu nil
+  "keyboard driven menus based on iswitchb"
+  :group 'menu
+  :prefix "iswitch-menu")
+
+(defcustom iswitch-menu-checked-toggle-mark "(*)" 
+  "a string indicating a menu item is a checked toggle item"
+  :group 'iswitch-menu
+  :type 'string)
+
+(defcustom iswitch-menu-unchecked-toggle-mark "( )" 
+  "a string indicating a menu item is an unchecked toggle item"
+  :group 'iswitch-menu
+  :type 'string)
+
+(defcustom iswitch-menu-checked-radio-mark "[*]" 
+  "a string indicating a menu item is a checked radio item"
+  :group 'iswitch-menu
+  :type 'string)
+
+(defcustom iswitch-menu-unchecked-radio-mark "[ ]" 
+  "a string indicating a menu item is an unchecked radio item"
+  :group 'iswitch-menu
+  :type 'string)
+
 ;; this will store debug info
-(defvar iswitch-menu-last-keydef-error :no-error)
 (defvar iswitch-menu-parse-error :no-error)
 (defvar iswitch-menu-captured-keymap :none)
 (defvar iswitch-menu-last-chosen :none)
+(defvar iswitch-menu-last-single-prompt :none)
 
 ;; adapted from iswitchb.el, Kin Cho
+;; this takes an alist of ("title" . whatever) entries
+;; and returns the chosen entry cons cell
 (defun iswitch-menu-single-prompt (prompt items)
+  (setq iswitch-menu-last-single-prompt items)
   (let ((iswitchb-make-buflist-hook
 	 (lambda ()
 	   (setq iswitchb-temp-buflist (mapcar #'car items)))))
     (assoc (iswitchb-read-buffer prompt) items)))
 
+
+;; this takes an alist of ("title" . definition) entries
+;; where result is either (:result . result) or
+;; (:menu . alist) for a nested menu
 (defun iswitch-menu-nested-prompt (prompt items)
   (let ((chosen (iswitch-menu-single-prompt (concat prompt " > ") items)))
-    (if (and (consp (cdr chosen))
-	     (not (eql 'lambda (cadr chosen)))
-	     (> (length (cdr chosen)) 1))
-	(iswitch-menu-nested-prompt (concat prompt " > " (car chosen)) (cdr chosen))
-      (setq iswitch-menu-last-chosen chosen)
-	chosen)))
+    (when chosen
+	(setq iswitch-menu-last-chosen chosen)
+	(case (cadr chosen)
+	  (:result (cddr chosen))
+	  (:menu (iswitch-menu-nested-prompt (concat prompt " > " (car chosen)) (cddr chosen)))
+	  (t chosen)))))
 
-(defun iswitch-menu-eventp (thing)
-  (and (not (keymapp thing))
-       (or (symbolp thing)
-	   (and (consp thing)
-		(eql 'lambda (car thing))))))
+;; see elisp manual section "Extended Menu Items"
+(defun iswitch-menu-parse-extended-menu-item (item)
+  (when (and (cdr item) ;; skip non-selectable items
+	     (consp (cdr item))
+	     (consp (cddr item)))
+    (let* ((title (cadr item))
+	   (binding (caddr item))
+	   (props (if (keywordp (cadddr item))
+		      (cdddr item)
+		      (cddddr item)))
+	   (button (getf props :button)))
+      (if (getf props :filter)
+	  (setq binding (funcall (getf props :filter) binding)))
+      (if (keymapp binding)
+	  (setq binding (cons :menu (iswitch-menu-parse-keymap binding)))
+	(setq binding (cons :result binding)))
+      (if (and (eval (getf props :enable t))
+	       (eval (getf props :visible t)))
+	  (if button
+	      (let* ((ticked (eval (cdr button)))
+		     (mark (if (eql :toggle (car button))
+			       (if ticked
+				   iswitch-menu-checked-toggle-mark
+				 iswitch-menu-unchecked-toggle-mark)
+			     (if ticked
+				 iswitch-menu-checked-radio-mark
+			       iswitch-menu-unchecked-radio-mark))))
+		(cons (concat title " " mark) binding))
+	    (cons title binding))
+	nil))))
 
-;; parse a single keymap key definition
-;; (which can be a keymap itself)
-;; TODO: test for visibility/enabled-ness
-(defun iswitch-menu-parse-keymap-entry (def)
-  (when (consp def)
-    (setq def (if (eql 'menu-item (car def))
-		  (cdr def)
-		def))
-    (let ((title (if (stringp (car def)) 
-		     (car def)
-		   (eval (car def)))))
-      (if (or (not (getf def :enable))
-	      (eval (getf def :enable)))
-	  (cond
-	   ;; ("--")
-	   ((not (cdr def))
-	    nil)
-	   ;; ("Title" . definition)
-	   ((iswitch-menu-eventp (cdr def))
-	    (cons title (cdr def)))
-	   ;; ("Title" definition ...)
-	   ((and (consp (cdr def))
-		 (not (keymapp (cdr def)))
-		 (iswitch-menu-eventp (cadr def)))
-	    (cons title (cadr def)))
-	   ;; ("Title" (stuff) longer definition)
-	   ((and (consp (cdr def))
-		 (not (keymapp (cadr def)))
-		 (iswitch-menu-eventp (cddr def)))
-	    (cons title (cddr def)))
-	   ;; ("Title" "Description" . def)
-	   ((and (consp (cdr def))
-		 (or (stringp (cadr def))
-		     (and (consp (cadr def))
-			  (null (caadr def))))
-		 (iswitch-menu-eventp (cddr def)))
-	    (cons title (cddr def)))
-	   ;; ("Title" "Description" (stuff) . def)
-	   ((and (consp (cdr def))
-		 (and (stringp (cadr def))
-		      (and (consp (cddr def))
-			   (consp (caddr def))
-			   (not (eql 'lambda (caaddr def)))
-			   (iswitch-menu-eventp (cdddr def)))))
-	    (cons title (cdddr def)))
-	   ;; nested keymaps
-	   ((keymapp (cdr def))
-	    (cons title (iswitch-menu-parse-keymap (cdr def))))
-	   ((keymapp (cadr def))
-	    (cons title (iswitch-menu-parse-keymap (cadr def))))
-	   ;;
-	   (t
-	    (message "s" (pp def))
-	    (setq iswitch-menu-last-keydef-error def)
-	    (error "iswitch-menu error: can't handle keymap definition")))))))
+(defun iswitch-menu-parse-menu-item (item)
+  (when (and item
+	     (consp item)
+	     (cdr item))
+    (cond
+     ((eql (car item) 'menu-item)
+      (iswitch-menu-parse-extended-menu-item item))
+     ((stringp (car item)) ;; simple menu item
+      (let ((binding (if (and (consp (cdr item))
+			      (stringp (cadr item)) ;; help string
+			      (cddr item)) ;; has a real binding
+			 (cddr item)
+		       (cdr item))))
+	(cons (car item) (if (keymapp binding)
+			     (cons :menu (iswitch-menu-parse-keymap binding))
+			   (cons :result binding)))))
+     (t nil))))
 
 (defun iswitch-menu-parse-keymap (keymap)
   (let ((orig-keymap keymap))
@@ -152,19 +178,16 @@
 	     (keymapp keymap))
 	(setq keymap (symbol-value keymap)))
     (if (keymapp keymap)
-	(let ((result))
-	  (map-keymap (lambda (key def)
-			(let ((p (iswitch-menu-parse-keymap-entry def)))
-			  (if p
-			      (setq result (cons p result))))) keymap)			
-	  (cons (if (consp (cadr keymap))
-		    (cadr (cadr keymap))
-		  (cadr keymap)) result)
-	  (nreverse result))
-      ;; not a valid keymap result. the only sitution I've run into is
-      ;; with yank-menu on my system.
-      (setq iswitch-menu-parse-error (list :orig orig-keymap :interpolated keymap))
-      nil)))
+	 (let ((result))
+	   (map-keymap (lambda (key def)
+			 (let ((p (iswitch-menu-parse-menu-item def)))
+			   (if p
+			       (setq result (cons p result))))) keymap)			
+	   (cons (if (consp (cadr keymap))
+		     (cadr (cadr keymap))
+		   (cadr keymap)) result)
+	   (nreverse result))
+      (remove-if #'null (mapcar #'iswitch-menu-parse-menu-item keymap)))))
 
 
 (defun iswitch-menu-prompt (menu &rest ignored)
@@ -174,9 +197,10 @@ the console / keyboard faster and more comfortable."
   (setq iswitch-menu-captured-keymap menu)
   (if (or (keymapp menu)
 	  (keymapp (car menu)))
-      (progn (let ((r (cdr (iswitch-menu-nested-prompt "Menu" (iswitch-menu-parse-keymap menu)))))
-	       (call-interactively r)))
-    (cdr (iswitch-menu-nested-prompt (caadr menu) (cdadr menu)))))
+      (progn (let ((r (iswitch-menu-nested-prompt "Menu" (iswitch-menu-parse-keymap menu))))
+	       (call-interactively (cond ((symbolp r) r)
+					 ((and (consp r) (consp (car r)) (eql 'lambda (cadr r))) (cdr r))))))
+    (iswitch-menu-nested-prompt (caadr menu) (remove-if #'null (mapcar #'iswitch-menu-parse-menu-item (cdadr menu))))))
 
 (defvar old-tmm-prompt-set 0)
 (defun old-tmm-prompt ())
@@ -194,15 +218,12 @@ currently no way to revert this command"
 
 (defun iswitch-menu-report ()
   (interactive)
-  (let ((buf (generate-new-buffer (generate-new-buffer-name "*ISWITCH-MENU-DEBUG*"))))
+  (let ((buf (generate-new-buffer "*ISWITCH-MENU-DEBUG*")))
     (display-buffer buf)
     (set-buffer buf)
     (insert "iswitch-menu debug info:\n\n")
-    (dolist (s '(iswitch-menu-last-keydef-error iswitch-menu-parse-error iswitch-menu-captured-keymap iswitch-menu-last-chosen))
+    (dolist (s '(iswitch-menu-parse-error iswitch-menu-captured-keymap iswitch-menu-last-chosen iswitch-menu-last-single-prompt))
       (insert (symbol-name s) ": " (pp-to-string (symbol-value s)) "\n\n"))))
-
- 
-
 
 (provide 'iswitch-menu)
 ;;; iswitch-menu.el ends here
