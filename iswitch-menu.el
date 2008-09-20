@@ -110,7 +110,7 @@
 	   ;; ("Title" . definition)
 	   ((iswitch-menu-eventp (cdr def))
 	    (cons title (cdr def)))
-	   ;; ("Title" longer definition)
+	   ;; ("Title" definition ...)
 	   ((and (consp (cdr def))
 		 (not (keymapp (cdr def)))
 		 (iswitch-menu-eventp (cadr def)))
