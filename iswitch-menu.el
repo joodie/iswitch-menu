@@ -29,7 +29,6 @@
 ;; file is in your load-path:
 ;;
 ;; (require 'iswitch-menu)
-;; (iswitch-menu-override-tmm-prompt)
 ;;
 ;; you can then access the console menu by running
 ;; M-x tmm-menubar
@@ -42,10 +41,13 @@
 ;;
 ;; M-x customize-group <ENTER> iswitch-menu <ENTER>
 ;;
+;; you can toggle iswitch-menu-override-tmm-prompt if you want to use
+;; iswitch-menu-prompt only for specific modes or commands.
+;;
 ;; REPORTING BUGS
 ;;
 ;; This code is still under construction. If you find any situations
-;; where it doesn't work, trye the the latest version from
+;; where it doesn't work, try the the latest version from
 ;; http://github.com/joodie/iswitch-menu/
 
 ;; If that doesn't work either, please contact the author. If any
@@ -68,6 +70,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (require 'cl)
+(require 'tmm)
 
 (defgroup iswitch-menu nil
   "keyboard driven menus based on iswitchb"
@@ -93,6 +96,12 @@
   "a string indicating a menu item is an unchecked radio item"
   :group 'iswitch-menu
   :type 'string)
+
+(defcustom iswitch-menu-override-tmm-prompt t
+  "if true, override tmm-prompt to use iswitch-menu-prompt
+this means all text-mode menus will use iswitch-menu"
+  :group 'iswitch-menu
+  :type 'boolean)
 
 ;; this will store debug info
 (defvar iswitch-menu-parse-error :no-error)
@@ -154,6 +163,8 @@
 	    (cons title binding))
 	nil))))
 
+
+
 (defun iswitch-menu-parse-menu-item (item)
   (when (and item
 	     (consp item)
@@ -202,19 +213,16 @@ the console / keyboard faster and more comfortable."
 					 ((and (consp r) (consp (car r)) (eql 'lambda (cadr r))) (cdr r))))))
     (iswitch-menu-nested-prompt (caadr menu) (remove-if #'null (mapcar #'iswitch-menu-parse-menu-item (cdadr menu))))))
 
-(defvar old-tmm-prompt-set 0)
-(defun old-tmm-prompt ())
 
-(defun iswitch-menu-override-tmm-prompt ()
-  "Install iswitch-menu-prompt over tmm-prompt. this means all
-x-popup-menu calls will use iswitch-menu-prompt instead. There is
-currently no way to revert this command"
-  (interactive)
-  (when (= old-tmm-prompt-set 0)
-    (require 'tmm)
-    (fset #'old-tmm-prompt #'tmm-prompt)
-    (setq old-tmm-prompt-set 1)
-    (fset #'tmm-prompt #'iswitch-menu-prompt)))
+(defadvice tmm-prompt (around use-iswitch-menu-prompt (menu &rest rest))
+  "call either tmm-prompt or iswitch-menu-prompt depending on the
+iswitch-menu-override-tmm-prompt customization setting"
+  (if iswitch-menu-override-tmm-prompt
+      (iswitch-menu-prompt menu)
+    ad-do-it))
+
+(ad-enable-advice #'tmm-prompt 'around 'use-iswitch-menu-prompt)
+(ad-activate #'tmm-prompt)
 
 (defun iswitch-menu-report ()
   (interactive)
