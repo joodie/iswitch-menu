@@ -18,6 +18,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+;; 
 ;; SYNOPSIS
 ;;
 ;; This code replaces tmm-prompt with something a lot more convenient.
@@ -46,11 +48,11 @@
 ;;
 ;; REPORTING BUGS
 ;;
-;; This code is still under construction. If you find any situations
+;; This code is still under construction.  If you find any situations
 ;; where it doesn't work, try the the latest version from
 ;; http://github.com/joodie/iswitch-menu/
 
-;; If that doesn't work either, please contact the author. If any
+;; If that doesn't work either, please contact the author.  If any
 ;; errors occur during the creation or executiong of a particular
 ;; menu, please provide the output of M-x iswitch-menu-report as run
 ;; immediately after the error.
@@ -67,9 +69,22 @@
 ;; switch on rails-always-use-text-menu and set
 ;; rails-text-menu-function to #'iswitch-menu-prompt
 ;; 
+;;; History:
+;;
+;; 2008/10/03 - Evaluated titles in extended menu items now work. As
+;;   far as I can tell, this means the menu/keymap parsing code is now
+;;   complete.
+;;
+;; 2008/09/24 - More inline documentation; more conformance to the
+;;   elisp conventions.
+;;
+;; 2008/09/23 - and earlier: less documented versions.
+;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(require 'cl)
+;;; Code:
+(eval-when-compile (require 'cl))
+
 (require 'tmm)
 
 (defgroup iswitch-menu nil
@@ -77,29 +92,29 @@
   :group 'menu
   :prefix "iswitch-menu")
 
-(defcustom iswitch-menu-checked-toggle-mark "(*)" 
-  "a string indicating a menu item is a checked toggle item"
+(defcustom iswitch-menu-checked-toggle-mark "(*)"
+  "A string indicating a menu item is a checked toggle item."
   :group 'iswitch-menu
   :type 'string)
 
-(defcustom iswitch-menu-unchecked-toggle-mark "( )" 
-  "a string indicating a menu item is an unchecked toggle item"
+(defcustom iswitch-menu-unchecked-toggle-mark "( )"
+  "A string indicating a menu item is an unchecked toggle item."
   :group 'iswitch-menu
   :type 'string)
 
-(defcustom iswitch-menu-checked-radio-mark "[*]" 
-  "a string indicating a menu item is a checked radio item"
+(defcustom iswitch-menu-checked-radio-mark "[*]"
+  "A string indicating a menu item is a checked radio item."
   :group 'iswitch-menu
   :type 'string)
 
-(defcustom iswitch-menu-unchecked-radio-mark "[ ]" 
-  "a string indicating a menu item is an unchecked radio item"
+(defcustom iswitch-menu-unchecked-radio-mark "[ ]"
+  "A string indicating a menu item is an unchecked radio item."
   :group 'iswitch-menu
   :type 'string)
 
 (defcustom iswitch-menu-override-tmm-prompt t
-  "if true, override tmm-prompt to use iswitch-menu-prompt
-this means all text-mode menus will use iswitch-menu"
+  "If true, override `tmm-prompt' to use `iswitch-menu-prompt'.
+this means all `text-mode' menus will use iswitch-menu"
   :group 'iswitch-menu
   :type 'boolean)
 
@@ -110,9 +125,10 @@ this means all text-mode menus will use iswitch-menu"
 (defvar iswitch-menu-last-single-prompt :none)
 
 ;; adapted from iswitchb.el, Kin Cho
-;; this takes an alist of ("title" . whatever) entries
-;; and returns the chosen entry cons cell
 (defun iswitch-menu-single-prompt (prompt items)
+  "Display a non-nested menu (using `iswitchb').
+PROMPT is a string and ITEMS is an alist of options ((TITLE
+. SOMETHING) ...).  Return the selected cons."
   (setq iswitch-menu-last-single-prompt items)
   (let ((iswitchb-make-buflist-hook
 	 (lambda ()
@@ -121,11 +137,13 @@ this means all text-mode menus will use iswitch-menu"
       (setq last-command-event (car r)) ; this is used by "edit > paste from kill menu" & others
       r)))
 
-
-;; this takes an alist of ("title" . definition) entries
-;; where result is either (:result . result) or
-;; (:menu . alist) for a nested menu
 (defun iswitch-menu-nested-prompt (prompt items)
+  "Display a possibly nested menu (using `iswitchb').
+PROMPT is a string and ITEMS is an alist consisting of (TITLE
+. DEFINITION) pairs.  DEFINITIONs are cons cells
+containing (:result . RESULT) or (:menu . ALIST), where RESULT is
+returned if the user chooses it, and ALIST is a submenu
+definition"
   (let ((chosen (iswitch-menu-single-prompt (concat prompt " > ") items)))
     (when chosen
 	(setq iswitch-menu-last-chosen chosen)
@@ -135,16 +153,20 @@ this means all text-mode menus will use iswitch-menu"
 	  (t chosen)))))
 
 ;; see elisp manual section "Extended Menu Items"
-(defun iswitch-menu-parse-extended-menu-item (item)
-  (when (and (cdr item) ;; skip non-selectable items
-	     (consp (cdr item))
-	     (consp (cddr item)))
-    (let* ((title (cadr item))
-	   (binding (caddr item))
-	   (props (if (keywordp (cadddr item))
-		      (cdddr item)
-		      (cddddr item)))
+(defun iswitch-menu-parse-extended-menu-item (menu-item)
+  "Convert an extended MENU-ITEM into a form suitable for `iswitch-menu'.
+See also the elisp manual section on Extended Menu Items."
+  (when (and (cdr menu-item) ;; skip non-selectable menu-items
+	     (consp (cdr menu-item))
+	     (consp (cddr menu-item)))
+    (let* ((title (cadr menu-item))
+	   (binding (caddr menu-item))
+	   (props (if (keywordp (cadddr menu-item))
+		      (cdddr menu-item)
+		      (cddddr menu-item)))
 	   (button (getf props :button)))
+      (unless (stringp title)
+	(setq title (eval title)))
       (if (getf props :filter)
 	  (setq binding (funcall (getf props :filter) binding)))
       (if (keymapp binding)
@@ -167,25 +189,27 @@ this means all text-mode menus will use iswitch-menu"
 
 
 
-(defun iswitch-menu-parse-menu-item (item)
-  (when (and item
-	     (consp item)
-	     (cdr item))
+(defun iswitch-menu-parse-menu-item (menu-item)
+  "Convert a MENU-ITEM into a form suitable for `iswitch-menu'."
+  (when (and menu-item
+	     (consp menu-item)
+	     (cdr menu-item))
     (cond
-     ((eql (car item) 'menu-item)
-      (iswitch-menu-parse-extended-menu-item item))
-     ((stringp (car item)) ;; simple menu item
-      (let ((binding (if (and (consp (cdr item))
-			      (stringp (cadr item)) ;; help string
-			      (cddr item)) ;; has a real binding
-			 (cddr item)
-		       (cdr item))))
-	(cons (car item) (if (keymapp binding)
+     ((eql (car menu-item) 'menu-item)
+      (iswitch-menu-parse-extended-menu-item menu-item))
+     ((stringp (car menu-item)) ;; simple menu item
+      (let ((binding (if (and (consp (cdr menu-item))
+			      (stringp (cadr menu-item)) ;; help string
+			      (cddr menu-item)) ;; has a real binding
+			 (cddr menu-item)
+		       (cdr menu-item))))
+	(cons (car menu-item) (if (keymapp binding)
 			     (cons :menu (iswitch-menu-parse-keymap binding))
 			   (cons :result binding)))))
      (t nil))))
 
 (defun iswitch-menu-parse-keymap (keymap)
+ "Convert a KEYMAP menu into a form suitable for `iswitch-menu'."
   (let ((orig-keymap keymap))
     (if (and (symbolp keymap)
 	     (keymapp keymap))
@@ -195,7 +219,7 @@ this means all text-mode menus will use iswitch-menu"
 	   (map-keymap (lambda (key def)
 			 (let ((p (iswitch-menu-parse-menu-item def)))
 			   (if p
-			       (setq result (cons p result))))) keymap)			
+			       (setq result (cons p result))))) keymap)
 	   (cons (if (consp (cadr keymap))
 		     (cadr (cadr keymap))
 		   (cadr keymap)) result)
@@ -203,10 +227,10 @@ this means all text-mode menus will use iswitch-menu"
       (remove-if #'null (mapcar #'iswitch-menu-parse-menu-item keymap)))))
 
 
-(defun iswitch-menu-prompt (menu &rest ignored)
-  "A drop-in replacement for tmm-prompt and x-popup-menu using
-iswitchb semantics and technology. Should make using menus from
-the console / keyboard faster and more comfortable."
+(defun iswitch-menu-prompt (menu &rest)
+  "A drop-in replacement for `tmm-prompt' and `x-popup-menu' using `iswitchb'.
+Should make using MENUs from the console / keyboard faster and
+more comfortable."
   (setq iswitch-menu-captured-keymap menu)
   (if (or (keymapp menu)
 	  (keymapp (car menu)))
@@ -217,8 +241,9 @@ the console / keyboard faster and more comfortable."
 
 
 (defadvice tmm-prompt (around use-iswitch-menu-prompt (menu &rest rest))
-  "call either tmm-prompt or iswitch-menu-prompt depending on the
-iswitch-menu-override-tmm-prompt customization setting"
+  "Call either `tmm-prompt' or `iswitch-menu-prompt'.
+Which is called depends on the `iswitch-menu-override-tmm-prompt'
+customization setting"
   (if iswitch-menu-override-tmm-prompt
       (iswitch-menu-prompt menu)
     ad-do-it))
@@ -227,6 +252,7 @@ iswitch-menu-override-tmm-prompt customization setting"
 (ad-activate #'tmm-prompt)
 
 (defun iswitch-menu-report ()
+  "Show debug information for `iswitch-menu'."
   (interactive)
   (let ((buf (generate-new-buffer "*ISWITCH-MENU-DEBUG*")))
     (display-buffer buf)
