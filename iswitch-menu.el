@@ -48,7 +48,7 @@
 ;;
 ;; REPORTING BUGS
 ;;
-;; This code is still under construction.  If you find any situations
+;; This code should work as advertized.  If you find any situations
 ;; where it doesn't work, try the the latest version from
 ;; http://github.com/joodie/iswitch-menu/
 
@@ -59,17 +59,23 @@
 ;;
 ;; USING THIS CODE WITH EMACS-RAILS
 ;;
-;; to use with emacs-rails navigation: same as above, and switch on
+;; To use with emacs-rails navigation: same as above, and switch on
 ;; the Rails Always Use Text Menus option in the rails customization
 ;; group.
 ;;
-;; alternatively, if you don't like to globally override tmm-prompt,
+;; Alternatively, if you don't like to globally override tmm-prompt,
 ;; get a version of emacs-rails with configurable text menus, like
 ;; this one: http://github.com/remvee/emacs-rails/tree/master and
 ;; switch on rails-always-use-text-menu and set
 ;; rails-text-menu-function to #'iswitch-menu-prompt
 ;; 
 ;;; History:
+;;
+;; Release 1.0 - 2008/10/04 - Set last-command-event when selecting
+;;   menu items this means "Paste from kill menu" now works and
+;;   possibly fixes some other issues.  As far as I can tell, the code
+;;   should now work for any menu that works with tmm-prompt or
+;;   x-popup-menu.
 ;;
 ;; 2008/10/03 - Evaluated titles in extended menu items now work. As
 ;;   far as I can tell, this means the menu/keymap parsing code is now
