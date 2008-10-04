@@ -117,7 +117,9 @@ this means all text-mode menus will use iswitch-menu"
   (let ((iswitchb-make-buflist-hook
 	 (lambda ()
 	   (setq iswitchb-temp-buflist (mapcar #'car items)))))
-    (assoc (iswitchb-read-buffer prompt) items)))
+    (let ((r (assoc (iswitchb-read-buffer prompt) items)))
+      (setq last-command-event (car r)) ; this is used by "edit > paste from kill menu" & others
+      r)))
 
 
 ;; this takes an alist of ("title" . definition) entries
