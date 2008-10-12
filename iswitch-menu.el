@@ -90,7 +90,8 @@
 
 ;;; Code:
 (eval-when-compile (require 'cl))
-
+(require 'cl)
+(require 'iswitchb)
 (require 'tmm)
 
 (defgroup iswitch-menu nil
@@ -135,13 +136,21 @@ this means all `text-mode' menus will use iswitch-menu"
   "Display a non-nested menu (using `iswitchb').
 PROMPT is a string and ITEMS is an alist of options ((TITLE
 . SOMETHING) ...).  Return the selected cons."
-  (setq iswitch-menu-last-single-prompt items)
-  (let ((iswitchb-make-buflist-hook
-	 (lambda ()
-	   (setq iswitchb-temp-buflist (mapcar #'car items)))))
-    (let ((r (assoc (iswitchb-read-buffer prompt) items)))
-      (setq last-command-event (car r)) ; this is used by "edit > paste from kill menu" & others
-      r)))
+  (let ((mode-on iswitchb-mode))
+    (unless mode-on
+      (iswitchb-mode 1))
+    (unwind-protect
+	(progn
+	  (setq iswitch-menu-last-single-prompt items)
+	  (let ((iswitchb-make-buflist-hook
+		 (lambda ()
+		   (setq iswitchb-temp-buflist (mapcar #'car items)))))
+	    (let ((r (assoc (iswitchb-read-buffer prompt) items)))
+	      (setq last-command-event (car r)) ; this is used by "edit > paste from kill menu" & others
+	      r)))
+      (unless mode-on
+	(iswitchb-mode -1)
+	nil))))
 
 (defun iswitch-menu-nested-prompt (prompt items)
   "Display a possibly nested menu (using `iswitchb').
@@ -233,7 +242,7 @@ See also the elisp manual section on Extended Menu Items."
       (remove-if #'null (mapcar #'iswitch-menu-parse-menu-item keymap)))))
 
 
-(defun iswitch-menu-prompt (menu &rest)
+(defun iswitch-menu-prompt (menu &rest ignore)
   "A drop-in replacement for `tmm-prompt' and `x-popup-menu' using `iswitchb'.
 Should make using MENUs from the console / keyboard faster and
 more comfortable."
