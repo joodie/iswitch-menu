@@ -71,6 +71,9 @@
 ;; 
 ;;; History:
 ;;
+;; 2008/10/12 - Added some fixes that should make byte-compiling work
+;;   and make the menu switch on iswitchb-mode temporarily if needed.
+;;
 ;; Release 1.0 - 2008/10/04 - Set last-command-event when selecting
 ;;   menu items this means "Paste from kill menu" now works and
 ;;   possibly fixes some other issues.  As far as I can tell, the code
