@@ -71,6 +71,9 @@
 ;; 
 ;;; History:
 ;;
+;; 2008/10/14 - Added support for keymaps in function cells instead
+;;   of just value cells.
+;;
 ;; Release 1.0 - 2008/10/04 - Set last-command-event when selecting
 ;;   menu items this means "Paste from kill menu" now works and
 ;;   possibly fixes some other issues.  As far as I can tell, the code
